@@ -23,6 +23,8 @@ namespace cppp{
                 typename U::type,
                 typename _query<enm_val,etc...>::type>;
         };
+        template<auto enm_val,typename ...etc>
+        using _query_t = _query<enm_val,etc...>::type;
         template<typename enm>
         void _delete(void*,enm){}
         template<typename enm,typename first,typename ...types>
@@ -31,6 +33,29 @@ namespace cppp{
                 delete static_cast<first::type*>(data);
             }else{
                 _delete<enm,types...>(data,enumeration);
+            }
+        }
+        template<typename enm>
+        bool _is_small(enm){
+            throw bad_variant_alternative();
+        }
+        template<typename enm,typename first,typename ...types>
+        bool _is_small(enm enumeration){
+            if(enumeration == first::enumeration){
+                return small<first::type>;
+            }else{
+                return _is_small<enm,types...>(enumeration);
+            }
+        }
+        template<typename enm>
+        void _destroy(void*,enm){}
+        template<typename enm,typename first,typename ...types>
+        void _destroy(void* data,enm enumeration){
+            if(enumeration == first::enumeration){
+                using ft = first::type;
+                static_cast<ft*>(data)->~ft();
+            }else{
+                _destroy<enm,types...>(data,enumeration);
             }
         }
         struct bad_variant_alternative : std::exception{
@@ -46,50 +71,117 @@ namespace cppp{
         template<typename enm,typename F,typename ...types>
         struct _constructor<enm,F,types...>{
             template<typename ...A>
+            void _construct_ip(void* to,enm enumeration,A&& ...args){
+                if(enumeration == F::enumeration){
+                    using vt = F::type;
+                    new(to) vt(std::forward<A>(args)...);
+                }
+                _constructor<enm,types...>::_construct_ip(to,enumeration,std::forward<A>(args)...);
+            }
+            template<typename ...A>
             void* _construct(enm enumeration,A&& ...args){
                 if(enumeration == F::enumeration){
                     using vt = F::type;
                     return new vt(std::forward<A>(args)...);
                 }
-                _constructor<enm,types...>::_construct(enumeration,std::forward<A>(args)...);
+                return _constructor<enm,types...>::_construct(enumeration,std::forward<A>(args)...);
             }
         };
+        constexpr static inline std::size_t SMALL_BUFFER_SIZE = sizeof(void*);
+        constexpr static inline std::size_t SMALL_BUFFER_ALIGNMENT = alignof(void*);
+        template<typename T>
+        concept small = (sizeof(T)<=SMALL_BUFFER_SIZE)&&(alignof(T)<=SMALL_BUFFER_ALIGNMENT);
     }
     template<auto enm_val>
     constexpr inline detail::construct_enum_t<enm_val> construct_enum{};
-    template<typename enm,typename ...types> requires(std::is_enum_v<enm>)
+    template<typename enm,enm null_v,typename ...types> requires(std::is_enum_v<enm>)
     class variant{
-        void* data;
+        union{
+            void* data;
+            std::byte small_buffer[SMALL_BUFFER_SIZE];
+        } data;
         enm held;
         template<enm enm_val,typename ...A>
         void* _construct(A&& ...a){
-            using vt = detail::_query<enm_val,types...>::type;
+            using vt = detail::_query_t<enm_val,types...>;
             return new vt(std::forward<A>(a)...);
         }
+        template<enm enm_val,typename ...A>
+        void _construct_ip(A&& ...a){
+            using vt = detail::_query_t<enm_val,types...>;
+            new(data.small_buffer) vt(std::forward<A>(a)...);
+        }
         void _destroy(){
-            if(data){
-                detail::_delete<enm,types...>(std::exchange(data,nullptr),held);
+            if(held != null_v){
+                if(detail::_is_small<enm,types...>(held)){
+                    detail::_destroy<enm,types...>(data.small_buffer,held);
+                }else{
+                    detail::_delete<enm,types...>(data.data,held);
+                }
+                held = null_v;
             }
         }
         public:
+            template<enm enm_val,typename ...A> requires(!detail::small<detail::_query_t<enm_val,types...>>)
+            variant(detail::construct_enum_t<enm_val>,A&& ...args) : data{.data=_construct<enm_val>(std::forward<A>(args)...)}, held(enm_val){}
+            template<enm enm_val,typename ...A> requires(detail::small<detail::_query_t<enm_val,types...>>)
+            variant(detail::construct_enum_t<enm_val>,A&& ...args) : data{.small_buffer{}}, held(enm_val){
+                _construct_ip<enm_val>(std::forward<A>(args)...);
+            }
+            variant(const variant&) = delete;
+            variant(variant&& other) : data(other.data), held(std::exchange(other.held,null_v)){}
+            variant& operator=(const variant&) = delete;
+            variant& operator=(variant&& other){
+                if(this!=&other){
+                    _destroy();
+                    data = other.data;
+                    held = std::exchange(other.held,null_v);
+                }
+                return *this;
+            }
             template<enm enm_val,typename ...A>
-            variant(detail::construct_enum_t<enm_val>,A&& ...args) : data(_construct<enm_val>(std::forward<A>(args)...)), held(enm_val){}
-            template<enm enm_val,typename ...A>
-            void set(A&& ...args){
+            void emplace(A&& ...args){
                 _destroy();
                 held = enm_val;
-                data = _construct<enm_val>(std::forward<A>(args)...);
+                if constexpr(detail::small<enm_val>){
+                    _construct_ip<enm_val>(std::forward<A>(args)...);
+                }else{
+                    data.data = _construct<enm_val>(std::forward<A>(args)...);
+                }
+            }
+            template<typename ...A>
+            void set(enm enm_val,A&& ...args){
+                _destroy();
+                held = enm_val;
+                if(detail::_is_small<enm,types...>(enm_val)){
+                    detail::_constructor<enm,types...>::_construct_ip(data.small_buffer,enm_val,std::forward<A>(args)...);
+                }else{
+                    data.data = detail::_constructor<enm,types...>::_construct(enm_val,std::forward<A>(args)...);
+                }
             }
             template<enm enm_val>
-            detail::_query<enm_val,types...>::type& get(){
-                return *static_cast<detail::_query<enm_val,types...>::type*>(data);
+            detail::_query_t<enm_val,types...>& get(){
+                using vt = detail::_query_t<enm_val,types...>;
+                if constexpr(detail::small<vt>){
+                    return *static_cast<vt*>(data.small_buffer);
+                }else{
+                    return *static_cast<vt*>(data.data);
+                }
             }
             template<enm enm_val>
-            const detail::_query<enm_val,types...>::type& get() const{
-                return *static_cast<const detail::_query<enm_val,types...>::type*>(data);
+            const detail::_query_t<enm_val,types...>& get() const{
+                using vt = detail::_query_t<enm_val,types...>;
+                if constexpr(detail::small<vt>){
+                    return *static_cast<const vt*>(data.small_buffer);
+                }else{
+                    return *static_cast<const vt*>(data.data);
+                }
             }
             enm current() const{
                 return held;
+            }
+            void hard_replace(enm other){
+                held = other;
             }
             ~variant(){
                 _destroy();
