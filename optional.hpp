@@ -1,5 +1,6 @@
 #pragma once
 #include<type_traits>
+#include<utility>
 namespace cppp{
     template<typename T>
     class optional{
@@ -13,6 +14,10 @@ namespace cppp{
         }
         public:
             optional() noexcept : has_value(false){}
+            template<typename ...A>
+            optional(std::in_place_t,A&& ...a) noexcept(std::is_nothrow_constructible_v<T,A...>) : has_value(true){
+                emplace<A...>(std::forward<A>(a)...);
+            }
             optional(const optional& other)
             noexcept(std::is_nothrow_copy_constructible_v<T>)
             requires(std::is_copy_constructible_v<T>) : has_value(true){
@@ -46,15 +51,9 @@ namespace cppp{
                 new(data) T(std::forward<A>(a)...);
                 has_value = true;
             }
-            void destroy(){
+            void reset(){
                 _destroy();
-                has_value = true;
-            }
-            template<typename ...A>
-            static optional construct(A&& ...a) noexcept(std::is_nothrow_constructible_v<T,A...>){
-                optional<T> v{true};
-                v.emplace<A...>(std::forward<A>(a)...);
-                return v;
+                has_value = false;
             }
             T* operator->() noexcept{
                 return reinterpret_cast<T*>(data);
