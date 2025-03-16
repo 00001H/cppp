@@ -101,7 +101,7 @@ namespace cppp{
             void write(frozenbuffer buf){
                 fs.write(reinterpret_cast<const char*>(buf.data()),buf.size());
             }
-            void writebr(std::byte b){
+            void writeb(std::byte b){
                 fs.put(std::bit_cast<char>(b));
             }
             void writeb(std::uint8_t v){

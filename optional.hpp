@@ -16,34 +16,39 @@ namespace cppp{
             optional() noexcept : has_value(false){}
             template<typename ...A>
             optional(std::in_place_t,A&& ...a) noexcept(std::is_nothrow_constructible_v<T,A...>) : has_value(true){
-                emplace<A...>(std::forward<A>(a)...);
+                new(data) T(std::forward<A>(a)...);
             }
             optional(const optional& other)
             noexcept(std::is_nothrow_copy_constructible_v<T>)
             requires(std::is_copy_constructible_v<T>) : has_value(true){
-                emplace(*other);
+                new(data) T(*other);
             }
             optional(optional&& other)
             noexcept(std::is_nothrow_copy_constructible_v<T>)
             requires(std::is_copy_constructible_v<T>) : has_value(true){
-                emplace(std::move(*other));
+                new(data) T(std::move(*other));
             }
             optional& operator=(const optional& other)
-            noexcept(std::is_nothrow_copy_assignable_v<T>)
-            requires(std::is_copy_assignable_v<T>){
-                **this = *other;
+            noexcept(std::is_nothrow_copy_assignable_v<T>&&std::is_nothrow_copy_constructible_v<T>)
+            requires(std::is_copy_assignable_v<T>&&std::is_copy_constructible_v<T>){
+                if(has_value){
+                    **this = *other;
+                }else{
+                    new(data) T(*other);
+                    has_value = true;
+                }
                 return *this;
             }
             optional& operator=(optional&& other)
-            noexcept(std::is_nothrow_move_assignable_v<T>)
-            requires(std::is_move_assignable_v<T>){
-                **this = std::move(*other);
+            noexcept(std::is_nothrow_move_assignable_v<T>&&std::is_nothrow_move_constructible_v<T>)
+            requires(std::is_move_assignable_v<T>&&std::is_move_constructible_v<T>){
+                if(has_value){
+                    **this = std::move(*other);
+                }else{
+                    new(data) T(std::move(*other));
+                    has_value = true;
+                }
                 return *this;
-            }
-            optional(optional&& other)
-            noexcept(std::is_nothrow_copy_constructible_v<T>)
-            requires(std::is_copy_constructible_v<T>) : has_value(true){
-                emplace(std::move(*other));
             }
             template<typename ...A>
             void emplace(A&& ...a) noexcept(std::is_nothrow_constructible_v<T,A...>){
