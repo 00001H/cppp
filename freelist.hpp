@@ -1,36 +1,39 @@
 #pragma once
 #include<cstdint>
-#include<queue>
+#include<set>
 namespace cppp{
     template<typename T=std::uint64_t>
     class Freelist{
         T max;
-        T length;
-        std::priority_queue<T> freelist;
+        T size;
+        std::set<T,std::greater<T>> freelist;
         public:
-            Freelist() : max(0), length(0){}
+            Freelist() : max(0), size(0){}
             T size() const{
-                return length;
+                return size;
             }
             T max_size() const{
                 return max;
             }
             T allocate(){
                 if(freelist.empty()){
-                    if(++length > max) max = length;
-                    return length - 1;
+                    if(++size > max) max = size;
+                    return size - 1;
                 }else{
-                    std::size_t ind = freelist.top();
-                    freelist.pop();
+                    T ind = *freelist.begin();
+                    freelist.erase(freelist.begin());
                     return ind;
                 }
             }
+            bool contains(T ind) const{
+                return ind < size && !freelist.contains(ind);
+            }
             void deallocate(T ind){
-                freelist.push(ind);
+                freelist.try_emplace(ind);
                 T ls;
-                while(!freelist.empty()&&freelist.top()==(ls = length-1)){
-                    freelist.pop();
-                    length = ls;
+                while(!freelist.empty()&&(*freelist.begin())==(ls = size-1)){
+                    freelist.erase(freelist.begin());
+                    size = ls;
                 }
             }
     };
