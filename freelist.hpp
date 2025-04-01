@@ -25,7 +25,7 @@ namespace cppp{
                     return ind;
                 }
             }
-            bool contains(T ind) const{
+            bool occupied(T ind) const{
                 return ind < size && !freelist.contains(ind);
             }
             void deallocate(T ind){
