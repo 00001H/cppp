@@ -1,6 +1,8 @@
 #pragma once
+#include"template-string.hpp"
 #include<type_traits>
 #include<cstddef>
+#include<cstdint>
 #include<span>
 namespace cppp{
     using buffer = std::span<std::byte>;
@@ -16,5 +18,9 @@ namespace cppp{
     template<typename T>
     frozenstaticbuffer<sizeof(T)> memory(const T* v){
         return frozenstaticbuffer<sizeof(T)>{reinterpret_cast<const std::byte*>(v),sizeof(T)};
+    }
+    template<template_string ts>
+    frozenstaticbuffer<ts.size()> operator ""_bbuf(){
+        return std::as_bytes(std::span<const char,ts.size()>(ts));
     }
 }
