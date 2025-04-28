@@ -4,20 +4,31 @@
 namespace cppp{
     template<typename T=std::uint64_t>
     class freelist{
-        T max;
+        T _max;
         T _size;
         std::set<T,std::greater<T>> list;
         public:
-            freelist() : max(0), _size(0){}
+            freelist() : _max(0), _size(0){}
+            const std::set<T,std::greater<T>>& holes() const{
+                return list;
+            }
+            void clear(){
+                list.clear();
+                _size = 0;
+            }
+            void reset(){
+                clear();
+                _max = 0;
+            }
             T size() const{
                 return _size;
             }
             T max_size() const{
-                return max;
+                return _max;
             }
             T allocate(){
                 if(list.empty()){
-                    if(++_size > max) max = _size;
+                    if(++_size > _max) _max = _size;
                     return _size - 1;
                 }else{
                     T ind = *list.begin();
