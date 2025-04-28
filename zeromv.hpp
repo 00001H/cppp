@@ -29,6 +29,9 @@ namespace cppp{
             zeroing_field& operator=(zeroing_field&& other){
                 value = std::exchange(other.value,zero_value);
             }
+            reset(){
+                value = zero_value;
+            }
             T& operator*(){
                 return value;
             }
