@@ -16,5 +16,11 @@ namespace cppp::unsigned_limits{
     template<std::uintmax_t num,typename ...T>
     using smallest_fit_in_t = smallest_fit_in<num,T...>::type;
     template<std::uintmax_t num>
-    using smallest_fit_t = smallest_fit_in<num,std::uint16_t,std::uint32_t,std::uint64_t>::type;
+    using smallest_int_fit_t = smallest_fit_in<num,std::uint16_t,std::uint32_t,std::uint64_t>::type;
+    template<std::uintmax_t num>
+    using smallest_fit_t = smallest_fit_in<num,std::uint8_t,std::uint16_t,std::uint32_t,std::uint64_t>::type;
+    template<std::uintmax_t num>
+    using fastest_int_fit_t = smallest_fit_in<num,std::uint_fast16_t,std::uint_fast32_t,std::uint_fast64_t>::type;
+    template<std::uintmax_t num>
+    using fastest_fit_t = smallest_fit_in<num,std::uint_fast8_t,std::uint_fast16_t,std::uint_fast32_t,std::uint_fast64_t>::type;
 }
