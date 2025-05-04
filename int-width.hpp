@@ -4,14 +4,16 @@
 #include<limits>
 namespace cppp::unsigned_limits{
     template<std::uintmax_t num,typename ...T>
-    struct smallest_fit_in{};
+    struct smallest_fit_in{
+        using type = void;
+    };
     template<std::uintmax_t num,typename A,typename ...T>
     struct smallest_fit_in<num,A,T...>{
         using type = std::conditional_t<
             num < static_cast<std::uintmax_t>(std::numeric_limits<A>::max()),
             A,
-            smallest_fit_in<num,T...>::type
-        >
+            typename smallest_fit_in<num,T...>::type
+        >;
     };
     template<std::uintmax_t num,typename ...T>
     using smallest_fit_in_t = smallest_fit_in<num,T...>::type;
