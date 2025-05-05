@@ -3,7 +3,7 @@
 #include<cstdint>
 #include<set>
 namespace cppp{
-    template<typename T=std::uint64_t>
+    template<typename T>
     class freelist{
         zeroing_field<T> _max;
         zeroing_field<T> _size;
