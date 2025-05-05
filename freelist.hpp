@@ -1,12 +1,12 @@
 #pragma once
-#include"zeromv.hpp"
+#include"zeroing-field.hpp"
 #include<cstdint>
 #include<set>
 namespace cppp{
     template<typename T>
     class freelist{
-        zeroing_field<T> _max;
-        zeroing_field<T> _size;
+        zeroing_field<T,true> _max;
+        zeroing_field<T,true> _size;
         std::set<T,std::greater<T>> list;
         public:
             freelist(){}
