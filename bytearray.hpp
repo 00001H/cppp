@@ -19,10 +19,11 @@ namespace cppp{
         }
         void _appendm(std::span<const std::byte> m){
             std::ranges::copy(m,*_m+*_l);
-            *_l += m.size();
         }
         public:
             bytes() = default;
+            bytes(bytes&&) = default;
+            bytes& operator=(bytes&&) = default;
             bytes(std::initializer_list<std::byte> b){
                 append(b);
             }
@@ -44,9 +45,10 @@ namespace cppp{
                 reserve(*_l);
             }
             void append(std::span<const std::byte> b){
-                std::size_t _ll = *_l+1uz;
+                std::size_t _ll = *_l+b.size();
                 reserve(_ll);
                 _appendm(b);
+                _l = _ll;
             }
             void append(std::byte b){
                 std::size_t _ll = *_l+1uz;
