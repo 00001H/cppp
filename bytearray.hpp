@@ -3,6 +3,8 @@
 #include<type_traits>
 #include<algorithm>
 #include<cstdint>
+#include<utility>
+#include<climits>
 #include<cmath>
 #include<span>
 #include<cppp/zeroing-field.hpp>
@@ -14,18 +16,52 @@ namespace cppp{
         void _reallocate(){
             delete[] std::exchange(*_m,*_c?new std::byte[*_c]:nullptr);
         }
-        void _appendb(std::uint64_t off,std::byte b){
-            (*_m)[*_l+off] = b;
-        }
-        void _appendm(std::span<const std::byte> m){
-            std::ranges::copy(m,*_m+*_l);
-        }
+        template<typename T>
+        struct _expandbytes{};
+        template<std::size_t... index>
+        struct _expandbytes<std::integer_sequence<std::size_t,index...>>{
+            template<typename I>
+            static void write(std::byte* memory,I number){
+                (..., (
+                    *(memory+index) = static_cast<std::byte>(number >> (index*CHAR_BIT))
+                ));
+            }
+        };
         public:
             bytes() = default;
             bytes(bytes&&) = default;
             bytes& operator=(bytes&&) = default;
             bytes(std::initializer_list<std::byte> b){
                 append(b);
+            }
+            template<typename I> requires(std::is_same_v<I,std::byte> || (std::is_integral_v<I> && std::is_unsigned_v<I>))
+            void write(std::size_t at,I num){
+                _expandbytes<std::make_index_sequence<sizeof(I)>>::write(*_m+at,num);
+            }
+            void write(std::size_t at,std::span<const std::byte> m){
+                std::ranges::copy(m,*_m+at);
+            }
+            void write(std::size_t at,std::byte b){
+                (*_m)[at] = b;
+            }
+            template<typename I> requires(std::is_same_v<I,std::byte> || (std::is_integral_v<I> && std::is_unsigned_v<I>))
+            void appendl(I num){
+                std::size_t _ll = *_l+sizeof(I);
+                reserve(_ll);
+                write<I>(*_l,num);
+                _l = _ll;
+            }
+            void append(std::span<const std::byte> b){
+                std::size_t _ll = *_l+b.size();
+                reserve(_ll);
+                write(*_l,b);
+                _l = _ll;
+            }
+            void append(std::byte b){
+                appendl<std::byte>(b);
+            }
+            void append(std::uint8_t b){
+                append(std::byte{b});
             }
             void reserve(std::size_t ns){
                 do{
@@ -37,59 +73,11 @@ namespace cppp{
                 reserve(ns);
                 if(ns>*_l){
                     std::fill(*_m+*_l,*_m+ns,b);
-                    *_l = ns;
+                    _l = ns;
                 }
             }
             void skip(std::size_t amnt){
-                *_l += amnt;
-                reserve(*_l);
-            }
-            void append(std::span<const std::byte> b){
-                std::size_t _ll = *_l+b.size();
-                reserve(_ll);
-                _appendm(b);
-                _l = _ll;
-            }
-            void append(std::byte b){
-                std::size_t _ll = *_l+1uz;
-                reserve(_ll);
-                _appendb(0,b);
-                _l = _ll;
-            }
-            void append(std::uint8_t b){
-                append(std::byte{b});
-            }
-            void appendl(std::uint8_t b){
-                append(std::byte{b});
-            }
-            void appendl(std::uint16_t w){
-                std::size_t _ll = *_l+2uz;
-                reserve(_ll);
-                _appendb(0,static_cast<std::byte>(w));
-                _appendb(1,static_cast<std::byte>(w>>8uz));
-                _l = _ll;
-            }
-            void appendl(std::uint32_t d){
-                std::size_t _ll = *_l+4uz;
-                reserve(_ll);
-                _appendb(0,static_cast<std::byte>(d));
-                _appendb(1,static_cast<std::byte>(d>>8uz));
-                _appendb(2,static_cast<std::byte>(d>>16uz));
-                _appendb(3,static_cast<std::byte>(d>>24uz));
-                _l = _ll;
-            }
-            void appendl(std::uint64_t q){
-                std::size_t _ll = *_l+8uz;
-                reserve(_ll);
-                _appendb(0,static_cast<std::byte>(q));
-                _appendb(1,static_cast<std::byte>(q>>8uz));
-                _appendb(2,static_cast<std::byte>(q>>16uz));
-                _appendb(3,static_cast<std::byte>(q>>24uz));
-                _appendb(4,static_cast<std::byte>(q>>32uz));
-                _appendb(5,static_cast<std::byte>(q>>40uz));
-                _appendb(6,static_cast<std::byte>(q>>48uz));
-                _appendb(7,static_cast<std::byte>(q>>56uz));
-                _l = _ll;
+                reserve(*_l += amnt);
             }
             std::byte& operator[](std::size_t ind){
                 return (*_m)[ind];
@@ -126,15 +114,9 @@ namespace cppp{
             std::size_t size() const{
                 return *_l;
             }
-            void fit(){
+            void shrink_to_fit(){
                 if(*_l<*_c){
                     _c = *_l;
-                    _reallocate();
-                }
-            }
-            void reallocate(std::size_t sz){
-                if(*_c != sz){
-                    _c = sz;
                     _reallocate();
                 }
             }
