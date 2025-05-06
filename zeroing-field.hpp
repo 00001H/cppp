@@ -22,7 +22,7 @@ namespace cppp{
                 value = std::exchange(other.value,T());
                 return *this;
             }
-            constexpr reset() noexcept{
+            constexpr void reset() noexcept{
                 value = T();
             }
             constexpr T& operator*() noexcept{
