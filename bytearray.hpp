@@ -14,7 +14,13 @@ namespace cppp{
         zeroing_field<std::size_t> _l;
         zeroing_field<std::size_t> _c;
         void _reallocate(){
-            delete[] std::exchange(*_m,*_c?new std::byte[*_c]:nullptr);
+            if(std::size_t cpc=*_c){
+                std::byte* nbuf = new std::byte[cpc];
+                std::copy(*_m,*_m+*_l,nbuf);
+                delete[] std::exchange(*_m,nbuf);
+            }else{
+                delete[] std::exchange(*_m,nullptr);
+            }
         }
         template<typename T>
         struct _expandbytes{};
