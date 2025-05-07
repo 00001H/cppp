@@ -41,7 +41,7 @@ namespace cppp{
                 append(b);
             }
             template<typename I> requires(std::is_same_v<I,std::byte> || (std::is_integral_v<I> && std::is_unsigned_v<I>))
-            void write(std::size_t at,I num){
+            void writel(std::size_t at,I num){
                 _expandbytes<std::make_index_sequence<sizeof(I)>>::write(*_m+at,num);
             }
             void write(std::size_t at,std::span<const std::byte> m){
@@ -51,8 +51,8 @@ namespace cppp{
                 (*_m)[at] = b;
             }
             template<typename I>
-            void write_and_move(std::size_t& at,I num){
-                write<I>(at,num);
+            void writel_and_move(std::size_t& at,I num){
+                writel<I>(at,num);
                 at += sizeof(I);
             }
             void write_and_move(std::size_t& at,std::span<const std::byte> m){
@@ -67,7 +67,7 @@ namespace cppp{
             void appendl(I num){
                 std::size_t _ll = *_l+sizeof(I);
                 reserve(_ll);
-                write<I>(*_l,num);
+                writel<I>(*_l,num);
                 _l = _ll;
             }
             void append(std::span<const std::byte> b){
