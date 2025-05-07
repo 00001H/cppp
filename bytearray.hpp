@@ -44,7 +44,20 @@ namespace cppp{
             void write(std::size_t at,std::byte b){
                 (*_m)[at] = b;
             }
-            template<typename I> requires(std::is_same_v<I,std::byte> || (std::is_integral_v<I> && std::is_unsigned_v<I>))
+            template<typename I>
+            void write_and_move(std::size_t& at,I num){
+                write<I>(at,num);
+                at += sizeof(I);
+            }
+            void write_and_move(std::size_t& at,std::span<const std::byte> m){
+                write(at,m);
+                at += m.size();
+            }
+            void write_and_move(std::size_t& at,std::byte b){
+                write(at,b);
+                ++at;
+            }
+            template<typename I>
             void appendl(I num){
                 std::size_t _ll = *_l+sizeof(I);
                 reserve(_ll);
