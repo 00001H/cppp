@@ -77,9 +77,9 @@ namespace cppp{
                 append(std::byte{b});
             }
             void reserve(std::size_t ns){
-                do{
+                while(ns>*_c){
                     *_c += std::max(*_c,1uz);
-                }while(ns>*_c);
+                }
                 _reallocate();
             }
             void resize(std::size_t ns,std::byte b=std::byte{0}){
@@ -126,6 +126,9 @@ namespace cppp{
             }
             std::size_t size() const{
                 return *_l;
+            }
+            std::size_t capacity() const{
+                return *_c;
             }
             void shrink_to_fit(){
                 if(*_l<*_c){
