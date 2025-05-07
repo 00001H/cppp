@@ -1,10 +1,6 @@
 #pragma once
 #include<cstdint>
 namespace cppp::compat{
-    #ifdef __cpp_pack_indexing
-    template<std::size_t i,typename ...Types>
-    using index_pack = Types...[i];
-    #else
     namespace detail{
         template<std::size_t i,typename ...Types>
         struct do_index{};
@@ -31,5 +27,4 @@ namespace cppp::compat{
     }
     template<std::size_t i,typename ...Types> requires(i < sizeof...(Types))
     using index_pack = detail::do_index<i,Types...>::type;
-    #endif
 }
