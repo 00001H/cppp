@@ -20,7 +20,7 @@ namespace cppp::compat{
         struct do_index<3uz,U1,U2,U3,T,Etc...>{
             using type = T;
         };
-        template<std::size_t ind,typename U1,typename U2,typename U3,typename U4,typename ...Etc>
+        template<std::size_t ind,typename U1,typename U2,typename U3,typename U4,typename ...Etc> requires(ind>=4uz)
         struct do_index<ind,U1,U2,U3,U4,Etc...>{
             using type = do_index<ind-4uz,Etc...>::type;
         };
