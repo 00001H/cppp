@@ -64,6 +64,10 @@ namespace cppp{
                 new(data+i) T(std::forward<A>(a)...);
                 return i;
             }
+            void pop(std::size_t i){
+                free.deallocate(i);
+                data[i].~T();
+            }
             T& operator[](std::size_t i){
                 return data[i];
             }

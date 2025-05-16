@@ -1,5 +1,6 @@
 #pragma once
 #include<unordered_map>
+#include<unordered_set>
 #include<string_view>
 #include<string>
 namespace cppp{
@@ -31,4 +32,5 @@ namespace cppp{
     }
     template<typename E>
     using strmap = std::unordered_map<std::u8string,E,detail::str_hash,detail::str_equ>;
+    using strset = std::unordered_set<std::u8string,detail::str_hash,detail::str_equ>;
 }
