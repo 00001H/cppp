@@ -21,14 +21,15 @@ namespace cppp{
             }
         }
         public:
-            indexed_pool() : data(nullptr), bufsize(0){}
-            indexed_pool(const indexed_pool&) = delete;
-            indexed_pool(indexed_pool&& other) noexcept : free(std::move(other)), data(std::exchange(other.data,nullptr)), bufsize(std::exchange(other.bufsize,0)){}
-            indexed_pool(const indexed_pool&) = delete;
-            indexed_pool(indexed_pool&& other) noexcept{
+            indexed_array_pool() : data(nullptr), bufsize(0){}
+            indexed_array_pool(const indexed_array_pool&) = delete;
+            indexed_array_pool(indexed_array_pool&& other) noexcept : free(std::move(other)), data(std::exchange(other.data,nullptr)), bufsize(std::exchange(other.bufsize,0)){}
+            indexed_array_pool operator=(const indexed_array_pool&) = delete;
+            indexed_array_pool& operator=(indexed_array_pool&& other) noexcept{
                 delete_buffer();
                 free = std::move(other.free);
                 data = std::exchange(other.data,nullptr);
+                return *this;
             }
             template<typename ...A>
             std::uint64_t emplace(A&& ...a){
@@ -37,17 +38,17 @@ namespace cppp{
                     std::uint64_t nbufsize = bufsize*2;
                     T* ndata = alloc.allocate(nbufsize);
                     if constexpr(std::is_nothrow_move_constructible_v<T>){
-                        for_each_index([](std::uint64_t i) noexcept{
+                        for_each_index([this,ndata](std::uint64_t i) noexcept{
                             new(ndata+i) T(std::move(data[i]));
                         });
                     }else if constexpr(std::is_nothrow_copy_constructible_v<T>){
-                        for_each_index([](std::uint64_t i) noexcept{
+                        for_each_index([this,ndata](std::uint64_t i) noexcept{
                             new(ndata+i) T(data[i]);
                         });
                     }else{
                         std::vector<T*> constructed;
                         try{
-                            for_each_index([&constructed](std::uint64_t i) noexcept{
+                            for_each_index([this,ndata,&constructed](std::uint64_t i) noexcept{
                                 new(ndata+i) T(std::move(data[i]));
                                 constructed.emplace_back(ndata+i);
                             });
@@ -86,7 +87,7 @@ namespace cppp{
                     fn(i);
                 }
             }
-            ~indexed_pool(){
+            ~indexed_array_pool(){
                 delete_buffer();
             }
     };
