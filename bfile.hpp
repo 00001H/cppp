@@ -23,9 +23,7 @@ namespace cppp{
                 std::fstream::pos_type v;
                 pos_buf(std::fstream::pos_type v) : v(v){}
             };
-            BinaryFile(std::u8string_view name,std::ios::openmode mode) : fs(
-                std::filesystem::path(name),mode
-            ){}
+            BinaryFile(std::filesystem::path path,std::ios::openmode mode) : fs(path,mode){}
             pos_buf tell() const{
                 return fs.tellg();
             }
