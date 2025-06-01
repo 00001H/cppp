@@ -32,13 +32,17 @@ namespace cppp{
             }
             optional(const optional& other)
             noexcept(std::is_nothrow_copy_constructible_v<T>)
-            requires(std::is_copy_constructible_v<T>) : has_value(true){
-                new(data) T(*other);
+            requires(std::is_copy_constructible_v<T>) : has_value(other.has_value){
+                if(has_value){
+                    new(data) T(*other);
+                }
             }
             optional(optional&& other)
             noexcept(std::is_nothrow_move_constructible_v<T>)
-            requires(std::is_move_constructible_v<T>) : has_value(true){
-                new(data) T(std::move(*other));
+            requires(std::is_move_constructible_v<T>) : has_value(other.has_value){
+                if(has_value){
+                    new(data) T(std::move(*other));
+                }
             }
             optional& operator=(const optional& other)
             noexcept(std::is_nothrow_copy_assignable_v<T>&&std::is_nothrow_copy_constructible_v<T>)
