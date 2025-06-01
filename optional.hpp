@@ -18,6 +18,18 @@ namespace cppp{
             optional(std::in_place_t,A&& ...a) noexcept(std::is_nothrow_constructible_v<T,A...>) : has_value(true){
                 new(data) T(std::forward<A>(a)...);
             }
+            optional(const T& v)
+            noexcept(std::is_nothrow_copy_constructible_v<T>)
+            requires(std::is_copy_constructible_v<T>)
+            : has_value(true){
+                new(data) T(std::move(v));
+            }
+            optional(T&& v)
+            noexcept(std::is_nothrow_move_constructible_v<T>)
+            requires(std::is_move_constructible_v<T>)
+            : has_value(true){
+                new(data) T(std::move(v));
+            }
             optional(const optional& other)
             noexcept(std::is_nothrow_copy_constructible_v<T>)
             requires(std::is_copy_constructible_v<T>) : has_value(true){
