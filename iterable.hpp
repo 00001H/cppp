@@ -4,6 +4,7 @@ namespace cppp{
     template<typename T>
     class const_iterable : public T{
         public:
+            using T::T;
             constexpr T::const_iterator cbegin() const noexcept(noexcept(std::declval<const T&>().begin())){
                 return this->begin();
             }
@@ -14,6 +15,7 @@ namespace cppp{
     template<typename T>
     class reverse_iterable : public T{
         public:
+            using T::T;
             using reverse_iterator = std::reverse_iterator<typename T::iterator>;
             using const_reverse_iterator = std::reverse_iterator<typename T::const_iterator>;
             constexpr reverse_iterator rbegin() noexcept(noexcept(std::declval<T&>().end())){
