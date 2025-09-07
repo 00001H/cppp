@@ -1,6 +1,8 @@
 #pragma once
 #include"polyfill/pack-indexing.hpp"
 #include"exchange.hpp"
+#include<type_traits>
+#include<cassert>
 #include<cstdint>
 #include<utility>
 #include<limits>
@@ -10,43 +12,61 @@ namespace cppp{
     template<typename T>
     constexpr inline emplace_tag_t<T> emplace_tag{};
     namespace detail{
-        inline void destroy(void*,std::size_t){}
-        template<typename T,typename ...Etc>
-        void destroy(void* data,std::size_t index){
-            if(index){
-                destroy(data,index-1uz);
-            }else{
-                delete static_cast<T*>(data);
-            }
-        }
         template<typename T,typename ...Types>
         struct pack_find{};
         template<typename T,typename ...Types>
         struct pack_find<T,T,Types...>{
             constexpr static inline std::size_t index = 0uz;
         };
-        template<typename T,typename U1,typename ...Types>
+        template<typename T,typename U1,typename ...Types> requires(!std::same_as<U1,T>)
         struct pack_find<T,U1,T,Types...>{
             constexpr static inline std::size_t index = 1uz;
         };
-        template<typename T,typename U1,typename U2,typename ...Types>
+        template<typename T,typename U1,typename U2,typename ...Types> requires(!std::is_same_v<U1,T>&&!std::is_same_v<U2,T>)
         struct pack_find<T,U1,U2,T,Types...>{
             constexpr static inline std::size_t index = 2uz;
         };
-        template<typename T,typename U1,typename U2,typename U3,typename ...Types>
+        template<typename T,typename U1,typename U2,typename U3,typename ...Types> requires(!std::is_same_v<U1,T>&&!std::is_same_v<U2,T>&&!std::is_same_v<U3,T>)
         struct pack_find<T,U1,U2,U3,Types...>{
-            constexpr static inline std::size_t index = pack_find<T,Types...>::index-3uz;
+            constexpr static inline std::size_t index = pack_find<T,Types...>::index+3uz;
         };
         template<typename T,typename ...Types>
         constexpr inline std::size_t pack_find_i = pack_find<T,Types...>::index;
+        struct destroy{
+            template<typename T>
+            void operator()(T& obj) const noexcept{
+                delete &obj;
+            }
+        };
     }
     template<typename ...Tv>
     class heap_variant{
         void* data;
         std::size_t num;
-        void destroy(){
+        void destroy() noexcept{
             if(data){
-                detail::destroy<Tv...>(std::exchange(data,nullptr),num);
+                dispatch(detail::destroy());
+                data = nullptr;
+            }
+        }
+        template<typename Fn,std::size_t i> requires(i<sizeof...(Tv))
+        decltype(auto) _dispatch(Fn& fn){
+            if(i==num){
+                return std::forward<Fn>(fn)(*static_cast<compat::index_pack<i,Tv...>*>(data));
+            }else if constexpr(i+1uz==sizeof...(Tv)){
+                std::unreachable();
+            }else{
+                return _dispatch<Fn,i+1uz>(std::forward<Fn>(fn));
+            }
+        }
+        template<typename Fn,std::size_t i> requires(i<sizeof...(Tv))
+        decltype(auto) _dispatch(Fn&& fn) const{
+            if(i==num){
+                return std::forward<Fn>(fn)(*static_cast<const compat::index_pack<i,Tv...>*>(data));
+            }else if constexpr(i+1uz==sizeof...(Tv)){
+                std::unreachable();
+            }else{
+                return _dispatch<Fn,i+1uz>(std::forward<Fn>(fn));
             }
         }
         public:
@@ -54,58 +74,71 @@ namespace cppp{
             constexpr static std::size_t index_of = detail::pack_find_i<T,Tv...>;
             constexpr static std::size_t none{std::numeric_limits<std::size_t>::max()};
             heap_variant() : data(nullptr), num(0uz){}
+            explicit heap_variant(std::size_t num,void* data) : data(data), num(num){}
             template<typename T>
-            heap_variant(T&& inst) : data(new T(std::forward<T>(inst))), num(index_of<T>){}
+            heap_variant(T&& inst) : data(new std::remove_cvref_t<T>(std::forward<T>(inst))), num(index_of<std::remove_cvref_t<T>>){}
             template<typename T,typename ...A>
-            heap_variant(emplace_tag_t<T>,A&& ...argv) : data(new T(std::forward<A>(argv)...)), num(index_of<T>){}
+            heap_variant(emplace_tag_t<T>,A&& ...argv) : data(new T(std::forward<A>(argv)...)), num(index_of<std::remove_cvref_t<T>>){}
             heap_variant(const heap_variant&) = delete;
             heap_variant(heap_variant&& other) noexcept : data(std::exchange(other.data,nullptr)), num(other.num){}
             heap_variant& operator=(const heap_variant&) = delete;
-            heap_variant& operator=(heap_variant&& other){
-                if(this!=&other){
-                    detail::destroy<Tv...>(cppp::shl(data,other.data,nullptr),std::exchange(num,other.num));
-                }
+            heap_variant& operator=(heap_variant&& other) noexcept{
+                reset(other.num,std::exchange(other.data,nullptr));
                 return *this;
+            }
+            void reset() noexcept{
+                data = nullptr;
+            }
+            void reset(std::size_t n,void* d) noexcept{
+                destroy();
+                num = n;
+                data = d;
+            }
+            template<typename Fn>
+            decltype(auto) dispatch(Fn&& fn){
+                assert(*this);
+                return _dispatch<Fn,0uz>(std::forward<Fn>(fn));
+            }
+            template<typename Fn>
+            decltype(auto) dispatch(Fn&& fn) const{
+                assert(*this);
+                return _dispatch<Fn,0uz>(std::forward<Fn>(fn));
             }
             template<typename T,typename ...A>
             void emplace(A&& ...argv){
-                destroy();
-                data = new T(std::forward<A>(argv)...);
-                num = index_of<T>;
+                reset(index_of<T>,new T(std::forward<A>(argv)...));
             }
             template<std::size_t i,typename ...A>
             void emplace(A&& ...argv){
-                destroy();
                 using T = compat::index_pack<i,Tv...>;
-                data = new T(std::forward<A>(argv)...);
-                num = i;
+                reset(i,new T(std::forward<A>(argv)...));
             }
             template<typename T>
-            T& get(){
+            T& get() noexcept{
                 return *static_cast<T*>(data);
             }
             template<typename T>
-            const T& get() const{
+            const T& get() const noexcept{
                 return *static_cast<const T*>(data);
             }
             template<std::size_t i>
-            compat::index_pack<i,Tv...>& get(){
+            compat::index_pack<i,Tv...>& get() noexcept{
                 return get<compat::index_pack<i,Tv...>>();
             }
             template<std::size_t i>
-            const compat::index_pack<i,Tv...>& get() const{
+            const compat::index_pack<i,Tv...>& get() const noexcept{
                 return get<compat::index_pack<i,Tv...>>();
             }
-            std::size_t index() const{
+            std::size_t index() const noexcept{
                 return num;
             }
-            std::size_t tell() const{
+            std::size_t tell() const noexcept{
                 return empty()?none:num;
             }
-            bool empty() const{
+            bool empty() const noexcept{
                 return data == nullptr;
             }
-            explicit operator bool(){
+            explicit operator bool() const noexcept{
                 return data;
             }
             ~heap_variant(){
