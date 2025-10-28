@@ -89,11 +89,16 @@ namespace cppp{
                 _reallocate();
             }
             void resize(std::size_t ns,std::byte b=std::byte{0}){
-                reserve(ns);
+                _c = ns;
+                _reallocate();
                 if(ns>*_l){
                     std::fill(*_m+*_l,*_m+ns,b);
-                    _l = ns;
                 }
+                _l = ns;
+            }
+            void clear(){
+                _c = _l = 0;
+                _reallocate();
             }
             void skip(std::size_t amnt){
                 reserve(*_l += amnt);
